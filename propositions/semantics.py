@@ -15,6 +15,7 @@ from propositions.proofs import *
 #: truth values.
 Model = Mapping[str, bool]
 
+
 def is_model(model: Model) -> bool:
     """Checks if the given dictionary is a model over some set of variable
     names.
@@ -31,6 +32,7 @@ def is_model(model: Model) -> bool:
             return False
     return True
 
+
 def variables(model: Model) -> AbstractSet[str]:
     """Finds all variable names over which the given model is defined.
 
@@ -42,6 +44,7 @@ def variables(model: Model) -> AbstractSet[str]:
     """
     assert is_model(model)
     return model.keys()
+
 
 def evaluate(formula: Formula, model: Model) -> bool:
     """Calculates the truth value of the given formula in the given model.
@@ -73,19 +76,34 @@ def evaluate(formula: Formula, model: Model) -> bool:
     if is_variable(formula.root):
         return model[formula.root]
     if formula.root == "&":
-        return evaluate(formula.first, model) and evaluate(formula.second, model)
+        return evaluate(formula.first, model) and evaluate(
+            formula.second, model
+        )
     if formula.root == "|":
-        return evaluate(formula.first, model) or evaluate(formula.second, model)
+        return evaluate(formula.first, model) or evaluate(
+            formula.second, model
+        )
     if formula.root == "+":
-        return xor(evaluate(formula.first, model), evaluate(formula.second, model))
+        return xor(
+            evaluate(formula.first, model), evaluate(formula.second, model)
+        )
     if formula.root == "<->":
-        return evaluate(formula.first, model) == evaluate(formula.second, model)
+        return evaluate(formula.first, model) == evaluate(
+            formula.second, model
+        )
     if formula.root == "-&":
-        return not (evaluate(formula.first, model) and evaluate(formula.second, model))
+        return not (
+            evaluate(formula.first, model) and evaluate(formula.second, model)
+        )
     if formula.root == "-|":
-        return not (evaluate(formula.first, model) or evaluate(formula.second, model))
+        return not (
+            evaluate(formula.first, model) or evaluate(formula.second, model)
+        )
     if formula.root == "->":
-        return not evaluate(formula.first, model) or evaluate(formula.second, model)
+        return not evaluate(formula.first, model) or evaluate(
+            formula.second, model
+        )
+
 
 def xor(a, b):
     return (a or b) and (not a or not b)
@@ -115,11 +133,13 @@ def all_models(variables: Sequence[str]) -> Iterable[Model]:
 
     # Task 2.2
     def bin2model(num):
-        return {key: value == "1" for key, value in zip(variables, bin(num)[2:].zfill(n))}
+        return {
+            key: value == "1"
+            for key, value in zip(variables, bin(num)[2:].zfill(n))
+        }
 
-    for i in range(2 ** n):
+    for i in range(2**n):
         yield bin2model(i)
-
 
 
 def truth_values(formula: Formula, models: Iterable[Model]) -> Iterable[bool]:
@@ -142,6 +162,7 @@ def truth_values(formula: Formula, models: Iterable[Model]) -> Iterable[bool]:
     for model in models:
         yield evaluate(formula, model)
 
+
 def print_truth_table(formula: Formula) -> None:
     """Prints the truth table of the given formula, with variable-name columns
     sorted alphabetically.
@@ -159,7 +180,7 @@ def print_truth_table(formula: Formula) -> None:
         | T | T   | F        |
     """
     # Task 2.4
-    vars = sorted(list(formula.variables())) 
+    vars = sorted(list(formula.variables()))
     models = list(all_models(vars))
     vars = vars + [repr(formula)]
     length = [len(v) for v in vars]
@@ -171,7 +192,7 @@ def print_truth_table(formula: Formula) -> None:
 
     print("|", end="")
     for v, n in zip(vars, length):
-        print(f"-"*(n+2) + "|", end="")
+        print(f"-" * (n + 2) + "|", end="")
     print()
     values = list(truth_values(formula, models))
 
@@ -196,6 +217,7 @@ def is_tautology(formula: Formula) -> bool:
     # Task 2.5a
     return all(truth_values(formula, all_models(formula.variables())))
 
+
 def is_contradiction(formula: Formula) -> bool:
     """Checks if the given formula is a contradiction.
 
@@ -208,6 +230,7 @@ def is_contradiction(formula: Formula) -> bool:
     # Task 2.5b
     return not any(truth_values(formula, all_models(formula.variables())))
 
+
 def is_satisfiable(formula: Formula) -> bool:
     """Checks if the given formula is satisfiable.
 
@@ -219,6 +242,7 @@ def is_satisfiable(formula: Formula) -> bool:
     """
     # Task 2.5c
     return not is_contradiction(formula)
+
 
 def _synthesize_for_model(model: Model) -> Formula:
     """Synthesizes a propositional formula in the form of a single conjunctive
@@ -246,7 +270,6 @@ def _synthesize_for_model(model: Model) -> Formula:
     return base
 
 
-
 def synthesize(variables: Sequence[str], values: Iterable[bool]) -> Formula:
     """Synthesizes a propositional formula in DNF over the given variable names,
     that has the specified truth table.
@@ -272,10 +295,10 @@ def synthesize(variables: Sequence[str], values: Iterable[bool]) -> Formula:
     assert len(variables) > 0
     # Task 2.7
     p = variables[0]
-    dnf = Formula("&", Formula(p), Formula("~" , Formula(p)))
+    dnf = Formula("&", Formula(p), Formula("~", Formula(p)))
     for model, value in zip(all_models(variables), values):
-        cclause = _synthesize_for_model(model)
         if value:
+            cclause = _synthesize_for_model(model)
             dnf = Formula("|", dnf, cclause)
     return dnf
 
@@ -306,7 +329,9 @@ def _synthesize_for_all_except_model(model: Model) -> Formula:
     return base
 
 
-def synthesize_cnf(variables: Sequence[str], values: Iterable[bool]) -> Formula:
+def synthesize_cnf(
+    variables: Sequence[str], values: Iterable[bool]
+) -> Formula:
     """Synthesizes a propositional formula in CNF over the given variable names,
     that has the specified truth table.
 
@@ -365,7 +390,7 @@ def evaluate_inference(rule: InferenceRule, model: Model) -> bool:
         if not evaluate(formula, model):
             return True
     return evaluate(rule.conclusion, model)
-    
+
 
 def is_sound_inference(rule: InferenceRule) -> bool:
     """Checks if the given inference rule is sound, i.e., whether its
