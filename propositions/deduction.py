@@ -10,8 +10,10 @@ from propositions.syntax import *
 from propositions.proofs import *
 from propositions.axiomatic_systems import *
 
-def prove_corollary(antecedent_proof: Proof, consequent: Formula,
-                    conditional: InferenceRule) -> Proof:
+
+def prove_corollary(
+    antecedent_proof: Proof, consequent: Formula, conditional: InferenceRule
+) -> Proof:
     """Converts the given proof of a formula `antecedent` to a proof of the
     given formula `consequent` by using the given assumptionless inference rule
     of which ``'(``\ `antecedent`\ ``->``\ `consequent`\ ``)'`` is a
@@ -31,22 +33,26 @@ def prove_corollary(antecedent_proof: Proof, consequent: Formula,
         `~propositions.axiomatic_systems.MP` and `conditional`.
     """
     assert antecedent_proof.is_valid()
-    assert InferenceRule([],
-                         Formula('->', antecedent_proof.statement.conclusion,
-                                 consequent)).is_specialization_of(conditional)
+    assert InferenceRule(
+        [], Formula("->", antecedent_proof.statement.conclusion, consequent)
+    ).is_specialization_of(conditional)
     # Task 5.3a
     rules = antecedent_proof.rules | set([MP, conditional])
     assumptions = antecedent_proof.statement.assumptions
     statement = InferenceRule(assumptions, consequent)
     lines = list(antecedent_proof.lines)
-    formula = Formula('->', antecedent_proof.statement.conclusion, consequent)
+    formula = Formula("->", antecedent_proof.statement.conclusion, consequent)
     lines.append(Proof.Line(formula, conditional, []))
     lines.append(Proof.Line(consequent, MP, [len(lines) - 2, len(lines) - 1]))
     return Proof(statement, rules, lines)
 
-def combine_proofs(antecedent1_proof: Proof, antecedent2_proof: Proof,
-                   consequent: Formula, double_conditional: InferenceRule) -> \
-        Proof:
+
+def combine_proofs(
+    antecedent1_proof: Proof,
+    antecedent2_proof: Proof,
+    consequent: Formula,
+    double_conditional: InferenceRule,
+) -> Proof:
     """Combines the given proofs of two formulas `antecedent1` and `antecedent2`
     into a proof of the given formula `consequent` by using the given
     assumptionless inference rule of which
@@ -70,19 +76,28 @@ def combine_proofs(antecedent1_proof: Proof, antecedent2_proof: Proof,
     """
     assert antecedent1_proof.is_valid()
     assert antecedent2_proof.is_valid()
-    assert antecedent1_proof.statement.assumptions == \
-           antecedent2_proof.statement.assumptions
+    assert (
+        antecedent1_proof.statement.assumptions
+        == antecedent2_proof.statement.assumptions
+    )
     assert antecedent1_proof.rules == antecedent2_proof.rules
     assert InferenceRule(
-        [], Formula('->', antecedent1_proof.statement.conclusion,
-        Formula('->', antecedent2_proof.statement.conclusion, consequent))
-        ).is_specialization_of(double_conditional)
+        [],
+        Formula(
+            "->",
+            antecedent1_proof.statement.conclusion,
+            Formula("->", antecedent2_proof.statement.conclusion, consequent),
+        ),
+    ).is_specialization_of(double_conditional)
     # Task 5.3b
 
-    tmp_consequent = Formula("->", antecedent2_proof.statement.conclusion,
-                             consequent)
+    tmp_consequent = Formula(
+        "->", antecedent2_proof.statement.conclusion, consequent
+    )
 
-    tmp_proof = prove_corollary(antecedent1_proof, tmp_consequent, double_conditional)
+    tmp_proof = prove_corollary(
+        antecedent1_proof, tmp_consequent, double_conditional
+    )
 
     assumptions = tmp_proof.statement.assumptions
     statement = InferenceRule(assumptions, consequent)
@@ -118,7 +133,7 @@ def remove_assumption(proof: Proof) -> Proof:
         `~propositions.axiomatic_systems.I0`,
         `~propositions.axiomatic_systems.I1`, and
         `~propositions.axiomatic_systems.D`.
-    """        
+    """
     assert proof.is_valid()
     assert len(proof.statement.assumptions) > 0
     for rule in proof.rules:
@@ -132,26 +147,32 @@ def remove_assumption(proof: Proof) -> Proof:
     line_num = 0
     old2new = {}
     for i, line in enumerate(proof.lines):
-        new_formula = Formula("->",  start, line.formula)
+        new_formula = Formula("->", start, line.formula)
         if line.formula == start:
-            lines.append(Proof.Line(new_formula, rule=I0, assumptions= []))
+            lines.append(Proof.Line(new_formula, rule=I0, assumptions=[]))
             line_num += 1
         elif line.rule == MP:
             j, k = [old2new[x] for x in line.assumptions]
             pq, pqr = lines[j].formula, lines[k].formula
             pqpr = Formula("->", pq, new_formula)
             d_spec = Formula("->", pqr, pqpr)
-            lines.append(Proof.Line(d_spec, rule=D, assumptions=[])) #0
-            lines.append(Proof.Line(pqpr, rule=MP, assumptions=[k, line_num])) # 1
-            lines.append(Proof.Line(new_formula, rule=MP,
-                                    assumptions=[j, line_num + 1])) #2
+            lines.append(Proof.Line(d_spec, rule=D, assumptions=[]))  # 0
+            lines.append(
+                Proof.Line(pqpr, rule=MP, assumptions=[k, line_num])
+            )  # 1
+            lines.append(
+                Proof.Line(new_formula, rule=MP, assumptions=[j, line_num + 1])
+            )  # 2
             line_num += 3
-        else: # line.formula in assumptions/specialization of assumptions:
+        else:  # line.formula in assumptions/specialization of assumptions:
             lines.append(line)
-            i1_spec = Formula("->",  line.formula, new_formula)
+            i1_spec = Formula("->", line.formula, new_formula)
             lines.append(Proof.Line(i1_spec, rule=I1, assumptions=[]))
-            lines.append(Proof.Line(new_formula, rule=MP,
-                                    assumptions=[line_num, line_num + 1]))
+            lines.append(
+                Proof.Line(
+                    new_formula, rule=MP, assumptions=[line_num, line_num + 1]
+                )
+            )
             line_num += 3
 
         old2new[i] = line_num - 1
@@ -159,9 +180,9 @@ def remove_assumption(proof: Proof) -> Proof:
     return Proof(statement, rules, lines)
 
 
-def prove_from_opposites(proof_of_affirmation: Proof,
-                         proof_of_negation: Proof, conclusion: Formula) -> \
-        Proof:
+def prove_from_opposites(
+    proof_of_affirmation: Proof, proof_of_negation: Proof, conclusion: Formula
+) -> Proof:
     """Combines the given proofs of a formula `affirmation` and its negation
     ``'~``\ `affirmation`\ ``'`` into a proof of the given formula.
 
@@ -179,13 +200,20 @@ def prove_from_opposites(proof_of_affirmation: Proof,
     """
     assert proof_of_affirmation.is_valid()
     assert proof_of_negation.is_valid()
-    assert proof_of_affirmation.statement.assumptions == \
-           proof_of_negation.statement.assumptions
-    assert Formula('~', proof_of_affirmation.statement.conclusion) == \
-           proof_of_negation.statement.conclusion
+    assert (
+        proof_of_affirmation.statement.assumptions
+        == proof_of_negation.statement.assumptions
+    )
+    assert (
+        Formula("~", proof_of_affirmation.statement.conclusion)
+        == proof_of_negation.statement.conclusion
+    )
     assert proof_of_affirmation.rules == proof_of_negation.rules
     # Task 5.6
-    return combine_proofs(proof_of_negation, proof_of_affirmation, conclusion, I2)
+    return combine_proofs(
+        proof_of_negation, proof_of_affirmation, conclusion, I2
+    )
+
 
 def prove_by_way_of_contradiction(proof: Proof) -> Proof:
     """Converts the given proof of ``'~(p->p)'``, the last assumption of which
@@ -208,21 +236,21 @@ def prove_by_way_of_contradiction(proof: Proof) -> Proof:
         `~propositions.axiomatic_systems.N`.
     """
     assert proof.is_valid()
-    assert proof.statement.conclusion == Formula.parse('~(p->p)')
+    assert proof.statement.conclusion == Formula.parse("~(p->p)")
     assert len(proof.statement.assumptions) > 0
-    assert proof.statement.assumptions[-1].root == '~'
+    assert proof.statement.assumptions[-1].root == "~"
     for rule in proof.rules:
         assert rule == MP or len(rule.assumptions) == 0
     # Task 5.7
-    f = proof.statement.assumptions[-1] # ~formula
+    f = proof.statement.assumptions[-1]  # ~formula
     proof = remove_assumption(proof)  # ~f->~(p->p)
-    proof = prove_corollary(proof, Formula("->", Formula.parse('(p->p)'), f.first), N)
+    proof = prove_corollary(
+        proof, Formula("->", Formula.parse("(p->p)"), f.first), N
+    )
 
     n = len(proof.lines)
     lines = list(proof.lines)
-    lines.append(Proof.Line(Formula.parse('(p->p)'), I0, []))
+    lines.append(Proof.Line(Formula.parse("(p->p)"), I0, []))
     lines.append(Proof.Line(f.first, MP, [n, n - 1]))
-    statement = InferenceRule(proof.assumptions, f.first)
+    statement = InferenceRule(proof.statement.assumptions, f.first)
     return Proof(statement, proof.rules, lines)
-
-
