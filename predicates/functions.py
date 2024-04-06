@@ -222,7 +222,7 @@ def replace_functions_with_relations_in_formula(formula: Formula) -> Formula:
     for variable in formula.variables():
         assert not is_z_and_number(variable)
     # Task 8.4
-
+    result = None
     if is_equality(formula.root) or is_relation(formula.root):
         top_terms = []
         rel_list = []
@@ -244,23 +244,24 @@ def replace_functions_with_relations_in_formula(formula: Formula) -> Formula:
         for rel in reversed(rel_list):
             var = rel.arguments[0]
             res = Formula("E", var.root, Formula("&", rel, res))
-        return res
+        result = res
     elif is_unary(formula.root):
-        return Formula(
+        result = Formula(
             "~", replace_functions_with_relations_in_formula(formula.first)
         )
     elif is_binary(formula.root):
-        return Formula(
+        result = Formula(
             formula.root,
             replace_functions_with_relations_in_formula(formula.first),
             replace_functions_with_relations_in_formula(formula.second),
         )
     elif is_quantifier(formula.root):
-        return Formula(
+        result = Formula(
             formula.root,
             formula.variable,
             replace_functions_with_relations_in_formula(formula.statement),
         )
+    return result
 
 
 def replace_functions_with_relations_in_formulas(
