@@ -7,13 +7,22 @@
 """Axiomatic schemas of Predicate Logic, and useful proof creation maneuvers
 using them."""
 
-from typing import AbstractSet, Collection, FrozenSet, List, Mapping, \
-                   Sequence, Tuple, Union
+from typing import (
+    AbstractSet,
+    Collection,
+    FrozenSet,
+    List,
+    Mapping,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from logic_utils import fresh_variable_name_generator, is_z_and_number
 
 from predicates.syntax import *
 from predicates.proofs import *
+
 
 class Prover:
     """A class for gradually creating a predicate-logic proof from given
@@ -31,30 +40,36 @@ class Prover:
         _print_as_proof_forms (`bool`): flag specifying whether the proof being
             created is being printed in real time as it forms.
     """
+
     _assumptions: FrozenSet[Schema]
     _lines: List[Proof.Line]
     _print_as_proof_forms: bool
 
     #: Axiom schema of universal instantiation
-    UI = Schema(Formula.parse('(Ax[R(x)]->R(c))'), {'R', 'x', 'c'})
+    UI = Schema(Formula.parse("(Ax[R(x)]->R(c))"), {"R", "x", "c"})
     #: Axiom schema of existential introduction
-    EI = Schema(Formula.parse('(R(c)->Ex[R(x)])'), {'R', 'x', 'c'})
+    EI = Schema(Formula.parse("(R(c)->Ex[R(x)])"), {"R", "x", "c"})
     #: Axiom schema of universal simplification
-    US = Schema(Formula.parse('(Ax[(Q()->R(x))]->(Q()->Ax[R(x)]))'),
-                {'Q', 'R', 'x'})
+    US = Schema(
+        Formula.parse("(Ax[(Q()->R(x))]->(Q()->Ax[R(x)]))"), {"Q", "R", "x"}
+    )
     #: Axiom schema of existential simplification
-    ES = Schema(Formula.parse('((Ax[(R(x)->Q())]&Ex[R(x)])->Q())'),
-                {'Q', 'R', 'x'})
+    ES = Schema(
+        Formula.parse("((Ax[(R(x)->Q())]&Ex[R(x)])->Q())"), {"Q", "R", "x"}
+    )
     #: Axiom schema of reflexivity
-    RX = Schema(Formula.parse('c=c'), {'c'})
+    RX = Schema(Formula.parse("c=c"), {"c"})
     #: Axiom schema of meaning of equality
-    ME = Schema(Formula.parse('(c=d->(R(c)->R(d)))'), {'R', 'c', 'd'})
+    ME = Schema(Formula.parse("(c=d->(R(c)->R(d)))"), {"R", "c", "d"})
     #: Axiomatic system for Predicate Logic, consisting of `UI`, `EI`, `US`,
     #: `ES`, `RX`, and `ME`.
     AXIOMS = frozenset({UI, EI, US, ES, RX, ME})
 
-    def __init__(self, assumptions: Collection[Union[Schema, Formula, str]],
-                 print_as_proof_forms: bool=False):
+    def __init__(
+        self,
+        assumptions: Collection[Union[Schema, Formula, str]],
+        print_as_proof_forms: bool = False,
+    ):
         """Initializes a `Prover` from its assumptions/additional axioms. The
         proof created by the prover initially has no lines.
 
@@ -66,20 +81,27 @@ class Prover:
             print_as_proof_forms: flag specifying whether the proof to be
                 created is to be printed in real time as it forms.
         """
-        self._assumptions = \
-            Prover.AXIOMS.union(
-                {assumption if isinstance(assumption, Schema)
-                 else Schema(assumption) if isinstance(assumption, Formula)
-                 else Schema(Formula.parse(assumption))
-                 for assumption in assumptions})
+        self._assumptions = Prover.AXIOMS.union(
+            {
+                (
+                    assumption
+                    if isinstance(assumption, Schema)
+                    else (
+                        Schema(assumption)
+                        if isinstance(assumption, Formula)
+                        else Schema(Formula.parse(assumption))
+                    )
+                )
+                for assumption in assumptions
+            }
+        )
         self._lines = []
         self._print_as_proof_forms = print_as_proof_forms
         if self._print_as_proof_forms:
-            print('Proving from assumptions/axioms:\n'
-                  '  AXIOMS')
+            print("Proving from assumptions/axioms:\n" "  AXIOMS")
             for assumption in self._assumptions - Prover.AXIOMS:
-                  print('  ' + str(assumption))
-            print('Lines:')
+                print("  " + str(assumption))
+            print("Lines:")
 
     def qed(self) -> Proof:
         """Concludes the proof created by the current prover.
@@ -91,7 +113,7 @@ class Prover:
         """
         conclusion = self._lines[-1].formula
         if self._print_as_proof_forms:
-            print('Conclusion:', str(conclusion) + '. QED\n')
+            print("Conclusion:", str(conclusion) + ". QED\n")
         return Proof(self._assumptions, conclusion, self._lines)
 
     def _add_line(self, line: Proof.Line) -> int:
@@ -110,13 +132,15 @@ class Prover:
         self._lines.append(line)
         assert line.is_valid(self._assumptions, self._lines, line_number)
         if self._print_as_proof_forms:
-            print(('%3d) ' % line_number) + str(line.formula))
+            print(("%3d) " % line_number) + str(line.formula))
         return line_number
 
-    def add_instantiated_assumption(self, instance: Union[Formula, str],
-                                    assumption: Schema,
-                                    instantiation_map: InstantiationMap) -> \
-            int:
+    def add_instantiated_assumption(
+        self,
+        instance: Union[Formula, str],
+        assumption: Schema,
+        instantiation_map: InstantiationMap,
+    ) -> int:
         """Appends to the proof being created by the current prover a line that
         validly justifies the given instance of the given assumptions/axioms of
         the current prover.
@@ -152,9 +176,10 @@ class Prover:
                     instantiation_map[key] = Formula.parse(value)
                 else:
                     assert isinstance(value, Formula)
-        return self._add_line(Proof.AssumptionLine(instance, assumption,
-                                                   instantiation_map))
-        
+        return self._add_line(
+            Proof.AssumptionLine(instance, assumption, instantiation_map)
+        )
+
     def add_assumption(self, unique_instance: Union[Formula, str]) -> int:
         """Appends to the proof being created by the current prover a line that
         validly justifies the unique instance of one of the assumptions/axioms
@@ -171,8 +196,9 @@ class Prover:
         """
         if isinstance(unique_instance, str):
             unique_instance = Formula.parse(unique_instance)
-        return self.add_instantiated_assumption(unique_instance,
-                                                Schema(unique_instance), {})
+        return self.add_instantiated_assumption(
+            unique_instance, Schema(unique_instance), {}
+        )
 
     def add_tautology(self, tautology: Union[Formula, str]) -> int:
         """Appends to the proof being created by the current prover a line that
@@ -190,9 +216,12 @@ class Prover:
             tautology = Formula.parse(tautology)
         return self._add_line(Proof.TautologyLine(tautology))
 
-    def add_mp(self, consequent: Union[Formula, str],
-               antecedent_line_number: int, conditional_line_number: int) -> \
-            int:
+    def add_mp(
+        self,
+        consequent: Union[Formula, str],
+        antecedent_line_number: int,
+        conditional_line_number: int,
+    ) -> int:
         """Appends to the proof being created by the current prover a line that
         validly justifies the given consequent of an MP inference from the
         specified already existing lines of the proof.
@@ -211,11 +240,15 @@ class Prover:
         """
         if isinstance(consequent, str):
             consequent = Formula.parse(consequent)
-        return self._add_line(Proof.MPLine(consequent, antecedent_line_number,
-                                           conditional_line_number))
+        return self._add_line(
+            Proof.MPLine(
+                consequent, antecedent_line_number, conditional_line_number
+            )
+        )
 
-    def add_ug(self, quantified: Union[Formula, str],
-               nonquantified_line_number: int) -> int:
+    def add_ug(
+        self, quantified: Union[Formula, str], nonquantified_line_number: int
+    ) -> int:
         """Appends to the proof being created by the current prover a line that
         validly justifies the given universally quantified formula, the
         statement quantified by which is the specified already existing line of
@@ -233,8 +266,9 @@ class Prover:
         """
         if isinstance(quantified, str):
             quantified = Formula.parse(quantified)
-        return self._add_line(Proof.UGLine(quantified,
-                                           nonquantified_line_number))
+        return self._add_line(
+            Proof.UGLine(quantified, nonquantified_line_number)
+        )
 
     def add_proof(self, conclusion: Union[Formula, str], proof: Proof) -> int:
         """Appends to the proof being created by the current prover a validly
@@ -260,20 +294,26 @@ class Prover:
             if type(line) in {Proof.AssumptionLine, Proof.TautologyLine}:
                 self._add_line(line)
             elif isinstance(line, Proof.MPLine):
-                self.add_mp(line.formula,
-                            line.antecedent_line_number + line_shift,
-                            line.conditional_line_number + line_shift)
+                self.add_mp(
+                    line.formula,
+                    line.antecedent_line_number + line_shift,
+                    line.conditional_line_number + line_shift,
+                )
             else:
                 assert isinstance(line, Proof.UGLine)
-                self.add_ug(line.formula,
-                            line.nonquantified_line_number + line_shift)
+                self.add_ug(
+                    line.formula, line.nonquantified_line_number + line_shift
+                )
         line_number = len(self._lines) - 1
         assert self._lines[line_number].formula == conclusion
-        return line_number                
+        return line_number
 
-    def add_universal_instantiation(self, instantiation: Union[Formula, str],
-                                    line_number: int, term: Union[Term, str]) \
-            -> int:
+    def add_universal_instantiation(
+        self,
+        instantiation: Union[Formula, str],
+        line_number: int,
+        term: Union[Term, str],
+    ) -> int:
         """Appends to the proof being created by the current prover a sequence
         of validly justified lines, the last of which validly justifies the
         given formula, which is the result of substituting a term for the
@@ -302,24 +342,28 @@ class Prover:
             instantiation = Formula.parse(instantiation)
         assert line_number < len(self._lines)
         quantified = self._lines[line_number].formula
-        assert quantified.root == 'A'
+        assert quantified.root == "A"
         if isinstance(term, str):
             term = Term.parse(term)
-        assert instantiation == \
-               quantified.statement.substitute({quantified.variable: term})
+        assert instantiation == quantified.statement.substitute(
+            {quantified.variable: term}
+        )
         # Task 10.1
-        ui = Formula("->",quantified , instantiation)
+        ui = Formula("->", quantified, instantiation)
         _ = Term("_")
-        instance_map = {'R': quantified.statement.substitute({quantified.variable: _}),
-                        "c": term, 'x': quantified.variable}
-        print(ui, instance_map )
+        instance_map = {
+            "R": quantified.statement.substitute({quantified.variable: _}),
+            "c": term,
+            "x": quantified.variable,
+        }
+        # print(ui, instance_map )
         step = self.add_instantiated_assumption(ui, Prover.UI, instance_map)
         step2 = self.add_mp(instantiation, line_number, step)
         return step2
 
-
-    def add_tautological_implication(self, implication: Union[Formula, str],
-                                     line_numbers: AbstractSet[int]) -> int:
+    def add_tautological_implication(
+        self, implication: Union[Formula, str], line_numbers: AbstractSet[int]
+    ) -> int:
         """Appends to the proof being created by the current prover a sequence
         of validly justified lines, the last of which validly justifies the
         given formula, which is a tautological implication of the formulas in
@@ -347,15 +391,18 @@ class Prover:
             assumption = self._lines[i].formula
             consequent = Formula("->", assumption, consequent)
         step = self.add_tautology(consequent)
-        
+
         for i in pre[::-1]:
             step = self.add_mp(consequent.second, i, step)
             consequent = self._lines[step].formula
         return step
 
-
-    def add_existential_derivation(self, consequent: Union[Formula, str],
-                                   line_number1: int, line_number2: int) -> int:
+    def add_existential_derivation(
+        self,
+        consequent: Union[Formula, str],
+        line_number1: int,
+        line_number2: int,
+    ) -> int:
         """Appends to the proof being created by the current prover a sequence
         of validly justified lines, the last of which validly justifies the
         given formula, which is the consequent of the formula in the second
@@ -382,11 +429,11 @@ class Prover:
             consequent = Formula.parse(consequent)
         assert line_number1 < len(self._lines)
         quantified = self._lines[line_number1].formula
-        assert quantified.root == 'E'
+        assert quantified.root == "E"
         assert quantified.variable not in consequent.free_variables()
         assert line_number2 < len(self._lines)
         conditional = self._lines[line_number2].formula
-        assert conditional == Formula('->', quantified.statement, consequent)
+        assert conditional == Formula("->", quantified.statement, consequent)
         # Task 10.3
 
         all_imp = Formula("A", quantified.variable, conditional)
@@ -394,15 +441,16 @@ class Prover:
         es = Formula("->", Formula("&", all_imp, quantified), consequent)
         _ = Term("_")
         placeholder = quantified.statement.substitute({quantified.variable: _})
-        sub_map = {'R': placeholder, 'Q': consequent, "x": quantified.variable}
+        sub_map = {"R": placeholder, "Q": consequent, "x": quantified.variable}
         step2 = self.add_instantiated_assumption(es, Prover.ES, sub_map)
-        step = self.add_tautological_implication(consequent,
-                                                   {line_number1, step2, step1})
+        step = self.add_tautological_implication(
+            consequent, {line_number1, step2, step1}
+        )
         return step
 
-
-    def add_flipped_equality(self, flipped: Union[Formula, str],
-                             line_number: int) -> int:
+    def add_flipped_equality(
+        self, flipped: Union[Formula, str], line_number: int
+    ) -> int:
         """Appends to the proof being created by the current prover a sequence
         of validly justified lines, the last of which validly justifies the
         given equality, which is the result of exchanging the two sides of the
@@ -424,25 +472,29 @@ class Prover:
         assert is_equality(flipped.root)
         assert line_number < len(self._lines)
         equality = self._lines[line_number].formula
-        assert equality == Formula('=', [flipped.arguments[1],
-                                         flipped.arguments[0]])
+        assert equality == Formula(
+            "=", [flipped.arguments[1], flipped.arguments[0]]
+        )
         # Task 10.6
-        equality
         c, d = equality.arguments
         c_c = Formula("=", [c, c])
         imp = Formula("->", c_c, flipped)
         me = Formula("->", equality, imp)
         R = Formula("=", [Term("_"), c])
-        step1 = self.add_instantiated_assumption(me, Prover.ME, {"R":R, "c":c, "d":d})
+        step1 = self.add_instantiated_assumption(
+            me, Prover.ME, {"R": R, "c": c, "d": d}
+        )
         step2 = self.add_mp(imp, line_number, step1)
-        step3 = self.add_instantiated_assumption(c_c, Prover.RX, {"c":c})
+        step3 = self.add_instantiated_assumption(c_c, Prover.RX, {"c": c})
         step4 = self.add_mp(flipped, step3, step2)
         return step4
 
-    def add_free_instantiation(self, instantiation: Union[Formula, str],
-                               line_number: int,
-                               substitution_map:
-                               Mapping[str, Union[Term, str]]) -> int:
+    def add_free_instantiation(
+        self,
+        instantiation: Union[Formula, str],
+        line_number: int,
+        substitution_map: Mapping[str, Union[Term, str]],
+    ) -> int:
         """Appends to the proof being created by the current prover a sequence
         of validly justified lines, the last of which validly justifies the
         given formula, which is the result of substituting terms for free
@@ -468,7 +520,7 @@ class Prover:
         Returns:
             The line number of the newly appended line that justifies the given
             formula in the proof being created by the current prover.
-            
+
         Examples:
             If Line `line_number` contains the formula
             ``'(z=5&Az[f(x,y)=g(z,y)])'`` and `substitution_map` is
@@ -501,25 +553,30 @@ class Prover:
             zs.append(z)
             better_map[z] = term
             quantified = Formula("A", variable, original)
-            step = self.add_ug(quantified, step) #Ax[f(x)]
+            step = self.add_ug(quantified, step)  # Ax[f(x)]
             sub_map = {variable: Term(z)}
             step = self.add_universal_instantiation(
-                quantified.statement.substitute(sub_map), step, Term(z)) # f(z)
-            original= self._lines[step].formula
+                quantified.statement.substitute(sub_map), step, Term(z)
+            )  # f(z)
+            original = self._lines[step].formula
             quantified = Formula("A", z, original)
-            step = self.add_ug(quantified, step)  #Az[f(z)]
-            original= self._lines[step].formula
+            step = self.add_ug(quantified, step)  # Az[f(z)]
+            original = self._lines[step].formula
         for z in zs[::-1]:
             step = self.add_universal_instantiation(
                 quantified.statement.substitute({z: better_map[z]}),
-                step, better_map[z])
+                step,
+                better_map[z],
+            )
             quantified = self._lines[step].formula
         return step
 
-    def add_substituted_equality(self, substituted: Union[Formula, str],
-                                 line_number: int,
-                                 parametrized_term: Union[Term, str]) -> \
-            int:
+    def add_substituted_equality(
+        self,
+        substituted: Union[Formula, str],
+        line_number: int,
+        parametrized_term: Union[Term, str],
+    ) -> int:
         """Appends to the proof being created by the current prover a sequence
         of validly justified lines, the last of which validly justifies the
         given equality, whose two sides are the results of substituting the two
@@ -553,17 +610,19 @@ class Prover:
         assert is_equality(equality.root)
         if isinstance(parametrized_term, str):
             parametrized_term = Term.parse(parametrized_term)
-        assert substituted == \
-               Formula('=', [parametrized_term.substitute(
-                                 {'_': equality.arguments[0]}),
-                             parametrized_term.substitute(
-                                 {'_': equality.arguments[1]})])
+        assert substituted == Formula(
+            "=",
+            [
+                parametrized_term.substitute({"_": equality.arguments[0]}),
+                parametrized_term.substitute({"_": equality.arguments[1]}),
+            ],
+        )
         # Task 10.8
         pc, pd = substituted.arguments
-        pc_pc = Formula("=", [pc, pc]) # g(x)+7 = g(x)+7
+        pc_pc = Formula("=", [pc, pc])  # g(x)+7 = g(x)+7
 
         c, d = equality.arguments
-        R = Formula("=", [pc, parametrized_term]) # g(x)+7 = _+7
+        R = Formula("=", [pc, parametrized_term])  # g(x)+7 = _+7
         maps = {"R": R, "c": c, "d": d}
         rc_rd = Formula("->", pc_pc, substituted)
         me = Formula("->", equality, rc_rd)
@@ -573,8 +632,9 @@ class Prover:
         step = self.add_mp(substituted, step1, step3)
         return step
 
-    def _add_chaining_of_two_equalities(self, line_number1: int,
-                                        line_number2: int) -> int:
+    def _add_chaining_of_two_equalities(
+        self, line_number1: int, line_number2: int
+    ) -> int:
         """Appends to the proof being created by the current prover a sequence
         of validly justified lines, the last of which validly justifies an
         equality that is the result of chaining together the two equalities in
@@ -604,21 +664,23 @@ class Prover:
         assert is_equality(equality2.root)
         assert equality1.arguments[1] == equality2.arguments[0]
         # Task 10.9a
+
         first, second = equality1.arguments
         _, third = equality2.arguments
-        R = Formula("=", [first, Term("_")]) # 1 = _
+
+        R = Formula("=", [first, Term("_")])  # 1 = _
         maps = {"R": R, "c": second, "d": third}
         res = Formula("=", [first, third])  #  1=3
-        e1213 = Formula("->", equality1, res) # 1=2->1=3
-        me = Formula("->", equality2, e1213) # 2=3->(1=2->1=3)
+        e1213 = Formula("->", equality1, res)  # 1=2->1=3
+        me = Formula("->", equality2, e1213)  # 2=3->(1=2->1=3)
         step1 = self.add_instantiated_assumption(me, Prover.ME, maps)
-        step2 = self.add_mp(e1213, line_number2, step1) # 1=2->1=3
+        step2 = self.add_mp(e1213, line_number2, step1)  # 1=2->1=3
         step = self.add_mp(res, line_number1, step2)
         return step
 
-
-    def add_chained_equality(self, chained: Union[Formula, str],
-                             line_numbers: Sequence[int]) -> int:
+    def add_chained_equality(
+        self, chained: Union[Formula, str], line_numbers: Sequence[int]
+    ) -> int:
         """Appends to the proof being created by the current prover a sequence
         of validly justified lines, the last of which validly justifies the
         given equality, which is the result of chaining together the equalities
