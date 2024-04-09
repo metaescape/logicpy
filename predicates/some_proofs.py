@@ -727,6 +727,84 @@ def prove_peano_left_neutral(print_as_proof_forms: bool = False) -> Proof:
     """
     prover = Prover(PEANO_AXIOMS, print_as_proof_forms)
     # Task 10.12
+    zero = prover.add_assumption("plus(x,0)=x")
+
+    # x+s(y) = s(x+y)
+    plus_add = prover.add_assumption("plus(x,s(y))=s(plus(x,y))")
+
+    ME = Schema(Formula.parse("(c=d->(R(c)->R(d)))"), {"R", "c", "d"})
+
+    # begin to prove 0+x=x->s(0+x)=s(x)
+    # 0+x=x->s(0+x)=s(0+x)->s(0+x)=s(x)
+    me1 = prover.add_instantiated_assumption(
+        "(plus(0,x)=x->(s(plus(0,x))=s(plus(0,x))->s(plus(0,x))=s(x)))",
+        prover.ME,
+        {"c": "plus(0,x)", "d": "x", "R": "s(plus(0,x))=s(_))"},
+    )
+
+    # s(0+x)=s(0+x)
+    always = prover.add_instantiated_assumption(
+        "s(plus(0,x))=s(plus(0,x))", prover.RX, {"c": "s(plus(0,x))"}
+    )
+
+    q = "(plus(0,x)=x->s(plus(0,x))=s(x))"  # 0+x=x -> s(0+x)=s(x)
+    # 0+x=x -> s(0+x)=s(x)
+    q_line = prover.add_tautological_implication(q, {me1, always})
+    # end to prove 0+x=x->s(0+x)=s(x)
+
+    # begin to prove 0+x=x -> 0+s(x)=s(x)
+
+    # 0+s(x)=s(0+x)
+    zero_add = prover.add_free_instantiation(
+        "plus(0,s(x))=s(plus(0,x))", plus_add, {"x": "0", "y": "x"}
+    )
+
+    # s(0+x) = 0+s(x)
+    p = "s(plus(0,x))=plus(0,s(x))"  # s(0+x) =0+s(x)
+    p_line = prover.add_flipped_equality(p, zero_add)
+
+    r = "(plus(0,x)=x->plus(0,s(x))=s(x))"  # 0+x=x -> 0+s(x)=s(x)
+    # s(0+x)=0+s(x) -> (0+x=x -> s(0+x)=s(x)->0+x=x -> 0+s(x)=s(x))
+    me2 = prover.add_instantiated_assumption(
+        f"({p}->({q}->{r}))",
+        prover.ME,
+        {
+            "c": "s(plus(0,x))",
+            "d": "plus(0,s(x))",
+            "R": "(plus(0,x)=x->_=s(x))",
+        },
+    )
+
+    # prove q->r
+    q_r_line = prover.add_mp(f"({q}->{r})", p_line, me2)
+
+    # prove r :  0+x=x -> 0+s(x)=s(x)
+    r_line = prover.add_mp(r, q_line, q_r_line)
+
+    # end to prove 0+x=x -> 0+s(x)=s(x)
+
+    # make induction step universal
+    ug_r = prover.add_ug(f"Ax[{r}]", r_line)
+
+    # base case and induction case
+    # base case 0 + 0 = 0
+    base_case = prover.add_free_instantiation("plus(0,0)=0", zero, {"x": "0"})
+    condition = f"(plus(0,0)=0&Ax[{r}])"
+    base_ind = prover.add_tautological_implication(
+        condition, {base_case, ug_r}
+    )
+    ind_axiom = prover.add_instantiated_assumption(
+        f"({condition}->Ax[plus(0,x)=x])",
+        INDUCTION_AXIOM,
+        {
+            "R": f"plus(0,_)=_",
+        },
+    )
+    ug_result = prover.add_mp("Ax[plus(0,x)=x]", base_ind, ind_axiom)
+    result = prover.add_universal_instantiation(
+        "plus(0,x)=x", ug_result, Term("x")
+    )
+
     return prover.qed()
 
 
@@ -750,6 +828,63 @@ def prove_russell_paradox(print_as_proof_forms: bool = False) -> Proof:
     """
     prover = Prover({COMPREHENSION_AXIOM}, print_as_proof_forms)
     # Task 10.13
+
+    # A(x)[x \in y<->~x \in x]-> c\in y <-> ~c \in c
+
+    # reference
+    UI = Schema(Formula.parse("(Ax[R(x)]->R(c))"), {"R", "x", "c"})
+
+    ui_first_temp = "((In(x,y)->~In(x,x))&(~In(x,x)->In(x,y)))"
+    ui_first = ui_first_temp.replace("y", "c")
+    ui_second = ui_first_temp.replace("x", "c")
+
+    specified_str = f"(Ax[{ui_first}]->{ui_second})"
+
+    specified = prover.add_instantiated_assumption(
+        specified_str,
+        prover.UI,
+        {
+            "R": ui_first_temp.replace("x", "_"),
+            "c": "c",
+        },
+    )
+
+    ug = prover.add_ug(f"Ay[{specified_str}]", specified)
+
+    comprehension_temp = "Ey[Ax[((In(x,y)->R(x))&(R(x)->In(x,y)))]]"
+    comprehension_str = comprehension_temp.replace("R(x)", "~In(x,x)")
+
+    comprehension = prover.add_instantiated_assumption(
+        comprehension_str,
+        COMPREHENSION_AXIOM,
+        {
+            "R": "~In(_,_))",
+        },
+    )
+
+    both = f"(Ay[{specified_str}]&{comprehension_str})"
+    prover.add_tautological_implication(both, {ug, comprehension})
+
+    es_str = f"({both}->Q())".replace("Q()", ui_second)
+    print(es_str)
+
+    # Referece
+    ES = Schema(
+        Formula.parse("((Ax[(R(x)->Q())]&Ex[R(x)])->Q())"), {"Q", "R", "x"}
+    )
+    prover.add_free_instantiation
+
+    print(f"Ax[{ui_first_temp}]".replace("y", "_"))
+    es = prover.add_instantiated_assumption(
+        es_str,
+        prover.ES,
+        {
+            "R": f"Ax[{ui_first_temp}]".replace("y", "_"),
+            "Q": ui_second,
+            "x": "y",
+        },
+    )
+
     return prover.qed()
 
 
