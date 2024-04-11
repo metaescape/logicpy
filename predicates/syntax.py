@@ -313,13 +313,19 @@ class Term:
         for variable in forbidden_variables:
             assert is_variable(variable)
         # Task 9.1
-        for formula in substitution_map.values():
-            for var in formula.variables():
-                if var in forbidden_variables:
-                    raise ForbiddenVariableError(var)
+        # for formula in substitution_map.values():
+        #     for var in formula.variables():
+        #         if var in forbidden_variables:
+        #             raise ForbiddenVariableError(var)
+        # the checking above is buggy,  check variables only when the formula will be substituted
         if is_constant(self.root) or is_variable(self.root):
             if self.root in substitution_map:
-                return substitution_map[self.root]
+                formula = substitution_map[self.root]
+                # # check here
+                for var in formula.variables():
+                    if var in forbidden_variables:
+                        raise ForbiddenVariableError(var)
+                return formula
             return self
         return Term(
             self.root,
@@ -845,6 +851,7 @@ class Formula:
             )
             result = Formula(self.root, first, second)
         if is_quantifier(self.root):
+
             if self.variable in substitution_map:
                 substitution_map = {
                     x: y
@@ -861,7 +868,7 @@ class Formula:
                 # return Formula(self.root, substitution_map[self.variable].root, statement)
 
             forbidden_variables_extra = forbidden_variables | {self.variable}
-
+            print(f"sub:{self}, {forbidden_variables_extra}")
             statement = self.statement.substitute(
                 substitution_map, forbidden_variables_extra
             )
