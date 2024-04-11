@@ -911,6 +911,34 @@ def _prove_not_exists_not_implies_all(
     assert is_variable(variable)
     # Optional Task 11.4a
 
+    not_f = Formula("~", formula)
+    all_f = Formula("A", variable, formula)
+    exist_not_f = Formula("E", variable, not_f)
+    not_exist_not_f = Formula("~", exist_not_f)
+
+    prover = Prover({not_exist_not_f}, print_as_proof_forms)
+    ass_step = prover.add_assumption(not_exist_not_f)
+    step = prover.add_instantiated_assumption(
+        Formula("->", not_f, exist_not_f),
+        Prover.EI,
+        {
+            "R": not_f.substitute({variable: Term("_")}),
+            "c": variable,
+            "x": variable,
+        },
+    )
+    step = prover.add_tautological_implication(
+        Formula("->", not_exist_not_f, formula), {step}
+    )
+
+    f_step = prover.add_mp(formula, ass_step, step)
+
+    ug_step = prover.add_ug(Formula("A", variable, formula), f_step)
+
+    new_proof = remove_assumption(prover.qed(), not_exist_not_f)
+
+    return new_proof
+
 
 def _prove_exists_not_implies_not_all(
     variable: str, formula: Formula, print_as_proof_forms: bool = False
