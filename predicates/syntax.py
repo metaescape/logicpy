@@ -868,7 +868,7 @@ class Formula:
                 # return Formula(self.root, substitution_map[self.variable].root, statement)
 
             forbidden_variables_extra = forbidden_variables | {self.variable}
-            print(f"sub:{self}, {forbidden_variables_extra}")
+            # print(f"sub:{self}, {forbidden_variables_extra}")
             statement = self.statement.substitute(
                 substitution_map, forbidden_variables_extra
             )

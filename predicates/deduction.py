@@ -83,9 +83,6 @@ def remove_assumption(
             Q = assumption
             R = statement.substitute({v: Term.parse("_")})
 
-            print(Q)
-            print(R)
-            print(us_formula)
             idx = prover.add_instantiated_assumption(
                 us_formula,
                 Prover.US,
@@ -107,9 +104,7 @@ def remove_assumption(
 
         line_map[i] = idx
 
-    conclusion = Formula("->", assumption, proof.conclusion)
-    new_proof = Proof(assumptions, conclusion, prover._lines)
-    return new_proof
+    return prover.qed()
 
 
 def prove_by_way_of_contradiction(proof: Proof, assumption: Formula) -> Proof:
@@ -136,4 +131,11 @@ def prove_by_way_of_contradiction(proof: Proof, assumption: Formula) -> Proof:
         if isinstance(line, Proof.UGLine):
             assert line.formula.variable not in assumption.free_variables()
     # Task 11.2
-    return None
+    new_proof = remove_assumption(proof, assumption)
+    prover = Prover(new_proof.assumptions)
+    idx = prover.add_proof(new_proof.conclusion, new_proof)
+    prover.add_tautological_implication(
+        f"~{assumption}",
+        {idx},
+    )
+    return prover.qed()

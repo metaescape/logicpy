@@ -320,7 +320,6 @@ class Schema:
             }  # only change variable or constant name
 
             try:
-                print(substitution, relations_map)
                 return substitution.substitute(relations_map)
             except ForbiddenVariableError as err:
                 raise Schema.BoundVariableError(
