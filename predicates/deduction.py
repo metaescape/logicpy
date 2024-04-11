@@ -9,9 +9,12 @@
 from predicates.syntax import *
 from predicates.proofs import *
 from predicates.prover import *
+import re
 
-def remove_assumption(proof: Proof, assumption: Formula,
-                      print_as_proof_forms: bool = False) -> Proof:
+
+def remove_assumption(
+    proof: Proof, assumption: Formula, print_as_proof_forms: bool = False
+) -> Proof:
     """Converts the given proof of some `conclusion` formula, an assumption of
     which is `assumption`, to a proof of
     ``'(``\ `assumption`\ ``->``\ `conclusion`\ ``)'`` from the same assumptions
@@ -30,7 +33,7 @@ def remove_assumption(proof: Proof, assumption: Formula,
     Returns:
         A valid proof of ``'(``\ `assumption`\ ``->``\ `conclusion`\ ``)'``
         from the same assumptions/axioms as the given proof except `assumption`.
-    """        
+    """
     assert proof.is_valid()
     assert Schema(assumption) in proof.assumptions
     assert proof.assumptions.issuperset(Prover.AXIOMS)
@@ -38,6 +41,76 @@ def remove_assumption(proof: Proof, assumption: Formula,
         if isinstance(line, Proof.UGLine):
             assert line.formula.variable not in assumption.free_variables()
     # Task 11.1
+
+    assumptions = {a for a in proof.assumptions if a != Schema(assumption)}
+    prover = Prover(assumptions, print_as_proof_forms)
+
+    line_map = {}
+
+    for i, line in enumerate(proof.lines):
+        p_original = Formula("->", assumption, line.formula)
+
+        if isinstance(line, Proof.AssumptionLine):
+            if line.formula == assumption:
+                idx = prover.add_tautology(p_original)
+            else:
+                idx = prover._add_line(line)  # add original formula
+                # add p->X and update line_map
+
+                idx = prover.add_tautological_implication(p_original, {idx})
+        elif isinstance(line, Proof.UGLine):
+            statement = line.formula.statement
+            v = str(line.formula.variable)
+
+            if v in assumption.free_variables():
+                new_variable = next(fresh_variable_name_generator)
+                assumption = assumption.substitute({v: new_variable})
+
+            p_original = Formula("->", assumption, statement)
+            p_original = Formula("A", v, p_original)
+            # add UG
+            line_num = line_map[line.nonquantified_line_number]
+            idx_ug = prover.add_ug(p_original, line_num)
+
+            result = Formula("->", assumption, line.formula)
+
+            us_formula = Formula("->", p_original, result)
+
+            US = Schema(
+                Formula.parse("(Ax[(Q()->R(x))]->(Q()->Ax[R(x)]))"),
+                {"Q", "R", "x"},
+            )
+            Q = assumption
+            R = statement.substitute({v: Term.parse("_")})
+
+            print(Q)
+            print(R)
+            print(us_formula)
+            idx = prover.add_instantiated_assumption(
+                us_formula,
+                Prover.US,
+                {"Q": Q, "R": R, "x": line.formula.variable},
+            )
+
+            idx = prover.add_mp(result, idx_ug, idx)
+
+        elif isinstance(line, Proof.MPLine):
+            idx = prover.add_tautological_implication(
+                p_original,
+                {
+                    line_map[line.antecedent_line_number],
+                    line_map[line.conditional_line_number],
+                },
+            )
+        else:  # tautological line
+            idx = prover.add_tautology(p_original)
+
+        line_map[i] = idx
+
+    conclusion = Formula("->", assumption, proof.conclusion)
+    new_proof = Proof(assumptions, conclusion, prover._lines)
+    return new_proof
+
 
 def prove_by_way_of_contradiction(proof: Proof, assumption: Formula) -> Proof:
     """Converts the given proof of a contradiction, an assumption of which is
@@ -63,3 +136,4 @@ def prove_by_way_of_contradiction(proof: Proof, assumption: Formula) -> Proof:
         if isinstance(line, Proof.UGLine):
             assert line.formula.variable not in assumption.free_variables()
     # Task 11.2
+    return None

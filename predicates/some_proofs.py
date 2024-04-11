@@ -836,7 +836,7 @@ def prove_russell_paradox(print_as_proof_forms: bool = False) -> Proof:
 
     ui_first_temp = "((In(x,y)->~In(x,x))&(~In(x,x)->In(x,y)))"
     ui_first = ui_first_temp.replace("y", "c")
-    ui_second = ui_first_temp.replace("x", "c")
+    ui_second = ui_first_temp.replace("x", "c").replace("y", "c")
 
     specified_str = f"(Ax[{ui_first}]->{ui_second})"
 
@@ -844,13 +844,15 @@ def prove_russell_paradox(print_as_proof_forms: bool = False) -> Proof:
         specified_str,
         prover.UI,
         {
-            "R": ui_first_temp.replace("x", "_"),
+            "R": ui_first.replace("x", "_"),
             "c": "c",
         },
     )
 
     ug = prover.add_ug(f"Ay[{specified_str}]", specified)
 
+    print(ug)
+    return None
     comprehension_temp = "Ey[Ax[((In(x,y)->R(x))&(R(x)->In(x,y)))]]"
     comprehension_str = comprehension_temp.replace("R(x)", "~In(x,x)")
 

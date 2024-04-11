@@ -264,42 +264,70 @@ class Schema:
             assert is_variable(variable)
         # Task 9.3
         result = None
+        # Two simple base cases are when formula is an invocation of a relation name that is:
+        # not a template, or an equality.
+        # The required substitution here is simply given by the substitute() method
+        # of class Formula (and you should completely disregard the set bound_variables in
+        # these two simple base cases).
         if is_equality(formula.root) or (
             is_relation(formula.root)
             and formula.root not in relations_instantiation_map
         ):
             result = formula.substitute(
-                constants_and_variables_instantiation_map, set()
+                constants_and_variables_instantiation_map
             )
+            # e.g. x=0 {'x':'y'} we get y=0
 
-        elif is_relation(formula.root) and len(formula.arguments) == 0:
-            joint = (
-                relations_instantiation_map[formula.root].free_variables()
-                & bound_variables
-            )
+        # Another simple base case is when formula is a nullary
+        # invocation of a (parameter-less) template relation name. In this case, the formula to which
+        # this relation name is mapped should simply be returned (but only after checking that
+        # the free variable names of this formula are disjoint from the set bound_variables –
+        # otherwise an exception should be raised).
+        elif (
+            is_relation(formula.root)
+            and len(formula.arguments) == 0
+            and formula.root in relations_instantiation_map
+        ):
+            substitution = relations_instantiation_map[formula.root]
+            joint = substitution.free_variables() & bound_variables
             if joint != set():
                 raise Schema.BoundVariableError(joint.pop(), formula.root)
-            result = relations_instantiation_map[formula.root]
-        elif is_relation(formula.root) and len(formula.arguments) == 1:
-            joint = (
-                relations_instantiation_map[formula.root].free_variables()
-                & bound_variables
-            )
+            result = substitution
+            # e.g. Q() with {'Q': Formula.parse('x=1')} we get x=1
+
+        # The interesting base case is when formula is
+        # a unary invocation of a (parametrized) template relation name, that is, of the form ‘R(t)’
+        # where R is a template relation name and t is a term. In this case, you should first use
+        # the substitute() method of class Term to make the substitutions in t to obtain the
+        # instantiated argument t' of this invocation, and then you should “plug” the instantiated
+        # argument t' into the formula φ to which this template relation name is mapped by using the
+        # substitute() method of class Formula with the substitution map {'_': t'}. (Of course,
+        # in this case you should also check before that the free variable names of φ are disjoint from
+        # the set bound_variables – otherwise an exception should be raised.)
+        elif (
+            is_relation(formula.root)
+            and len(formula.arguments) == 1
+            and formula.root in relations_instantiation_map
+        ):
+            substitution = relations_instantiation_map[formula.root]
+            joint = substitution.free_variables() & bound_variables
             if joint != set():
                 raise Schema.BoundVariableError(joint.pop(), formula.root)
             t = formula.arguments[0]
-            t_prime = t.substitute(
-                constants_and_variables_instantiation_map, set()
-            )
-            relations_map = {"_": t_prime}
+            t_prime = t.substitute(constants_and_variables_instantiation_map)
+            relations_map = {
+                "_": t_prime
+            }  # only change variable or constant name
+
             try:
-                return relations_instantiation_map[formula.root].substitute(
-                    relations_map, set()
-                )
+                print(substitution, relations_map)
+                return substitution.substitute(relations_map)
             except ForbiddenVariableError as err:
                 raise Schema.BoundVariableError(
                     err.variable_name, formula.root
                 )
+
+            # e.g. R(c) with {'R': A[x](x>_), 'c': g(x)} get error
         elif is_unary(formula.root):
             neg = Schema._instantiate_helper(
                 formula.first,
@@ -324,12 +352,19 @@ class Schema:
             result = Formula(formula.root, left, right)
 
         elif is_quantifier(formula.root):
+            # the only nontrivial step is the case where formula
+            # is a quantification of the form ‘∀x[φ]’ or ‘∃x[φ]’. In this case, if the quantification variable
+            # name is a template then it should be replaced as specified, and (regardless of whether or
+            # not the quantification variable name is a template) deeper recursion levels should take the
+            # quantification into account, i.e., the quantification variable name (after any replacement)
+            # should be included in the bound_variables set that is passed to deeper recursion levels.
             v = formula.variable
             if v in constants_and_variables_instantiation_map:
                 v = constants_and_variables_instantiation_map[v].root
             var = v
             statement = formula.statement
             bound_variables = {var} | bound_variables
+
             statement = Schema._instantiate_helper(
                 statement,
                 constants_and_variables_instantiation_map,
@@ -455,6 +490,7 @@ class Schema:
         # Task 9.4
         for template in instantiation_map:
             if template not in self.templates:
+                print(f"{template} not in {self.templates}")
                 return None
         const_var_instantiation_map = {}
         relation_instantiation_map = {}
@@ -480,6 +516,7 @@ class Schema:
                 set(),
             )
         except Schema.BoundVariableError:
+            print("raise BoundVariableError")
             return None
 
 
