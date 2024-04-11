@@ -1004,3 +1004,31 @@ def prove_not_all_iff_exists_not(
     """
     assert is_variable(variable)
     # Optional Task 11.4c
+    right2left = _prove_exists_not_implies_not_all(
+        variable, formula, print_as_proof_forms
+    )
+    reverse_left2right = _prove_not_exists_not_implies_all(
+        variable, formula, print_as_proof_forms
+    )
+    prover = Prover({}, print_as_proof_forms)
+    right2left_idx = prover.add_proof(right2left.conclusion, right2left)
+    reverse_left2right_idx = prover.add_proof(
+        reverse_left2right.conclusion, reverse_left2right
+    )
+    not_f = Formula("~", formula)
+    all_f = Formula("A", variable, formula)
+    not_all_f = Formula("~", all_f)
+    exist_not_f = Formula("E", variable, not_f)
+
+    left2right_idx = prover.add_tautological_implication(
+        Formula("->", not_all_f, exist_not_f),
+        {reverse_left2right_idx},
+    )
+    conclusion = Formula(
+        "&", Formula("->", not_all_f, exist_not_f), right2left.conclusion
+    )
+
+    prover.add_tautological_implication(
+        conclusion, {right2left_idx, left2right_idx}
+    )
+    return prover.qed()
