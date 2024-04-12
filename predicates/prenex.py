@@ -532,6 +532,70 @@ def _pull_out_quantifications_from_left_across_binary_operator(
     assert is_binary(formula.root)
     # Task 11.7a
 
+    prover = Prover(Prover.AXIOMS.union(ADDITIONAL_QUANTIFICATION_AXIOMS))
+    # base case
+    if not is_quantifier(formula.first.root):
+        tautology = equivalence_of(formula, formula)
+        prover.add_tautology(tautology)
+        return formula, prover.qed()
+
+    quantifier = formula.first.root
+    if formula.root == "->":
+        quantifier = "A" if quantifier == "E" else "E"
+
+    variable = formula.first.variable
+    second = formula.second
+
+    subformula = Formula(formula.root, formula.first.statement, second)
+
+    target_subformula, proof = (
+        _pull_out_quantifications_from_left_across_binary_operator(subformula)
+    )
+
+    qx_subformula = Formula(quantifier, variable, subformula)
+    qx_target_subformula = Formula(quantifier, variable, target_subformula)
+
+    # use extra axiom 15/16
+
+    left = equivalence_of(subformula, target_subformula)
+    right = equivalence_of(qx_subformula, qx_target_subformula)
+    inner_eq = prover.add_proof(left, proof)
+
+    _axiom = Formula("->", left, right)
+    template_R = subformula.substitute({variable: Term("_")})
+    template_Q = target_subformula.substitute({variable: Term("_")})
+    idx = -1 if quantifier == "E" else -2
+    axiom_idx = prover.add_instantiated_assumption(
+        _axiom,
+        ADDITIONAL_QUANTIFICATION_AXIOMS[idx],
+        {"R": template_R, "x": variable, "Q": template_Q, "y": variable},
+    )
+
+    eq1 = prover.add_mp(right, inner_eq, axiom_idx)
+
+    axiom_map = {
+        ("A", "|"): ADDITIONAL_QUANTIFICATION_AXIOMS[6],
+        ("E", "|"): ADDITIONAL_QUANTIFICATION_AXIOMS[7],
+        ("A", "&"): ADDITIONAL_QUANTIFICATION_AXIOMS[2],
+        ("E", "&"): ADDITIONAL_QUANTIFICATION_AXIOMS[3],
+        ("A", "->"): ADDITIONAL_QUANTIFICATION_AXIOMS[11],
+        ("E", "->"): ADDITIONAL_QUANTIFICATION_AXIOMS[10],
+    }
+
+    _axiom = equivalence_of(formula, qx_subformula)
+
+    eq2 = prover.add_instantiated_assumption(
+        _axiom,
+        axiom_map[(quantifier, formula.root)],
+        {"R": template_R.first, "x": variable, "Q": second},
+    )
+
+    prover.add_tautological_implication(
+        equivalence_of(formula, qx_target_subformula), {eq1, eq2}
+    )
+
+    return qx_target_subformula, prover.qed()
+
 
 def _pull_out_quantifications_from_right_across_binary_operator(
     formula: Formula,
@@ -579,6 +643,70 @@ def _pull_out_quantifications_from_right_across_binary_operator(
     assert has_uniquely_named_variables(formula)
     assert is_binary(formula.root)
     # Task 11.7b
+    prover = Prover(Prover.AXIOMS.union(ADDITIONAL_QUANTIFICATION_AXIOMS))
+    # base case
+    if not is_quantifier(formula.second.root):
+        tautology = equivalence_of(formula, formula)
+        prover.add_tautology(tautology)
+        return formula, prover.qed()
+
+    quantifier = formula.second.root
+
+    variable = formula.second.variable
+    first = formula.first
+
+    subformula = Formula(
+        formula.root,
+        first,
+        formula.second.statement,
+    )
+
+    target_subformula, proof = (
+        _pull_out_quantifications_from_right_across_binary_operator(subformula)
+    )
+
+    qx_subformula = Formula(quantifier, variable, subformula)
+    qx_target_subformula = Formula(quantifier, variable, target_subformula)
+
+    # use extra axiom 15/16
+
+    left = equivalence_of(subformula, target_subformula)
+    right = equivalence_of(qx_subformula, qx_target_subformula)
+    inner_eq = prover.add_proof(left, proof)
+
+    _axiom = Formula("->", left, right)
+    template_R = subformula.substitute({variable: Term("_")})
+    template_Q = target_subformula.substitute({variable: Term("_")})
+    idx = -1 if quantifier == "E" else -2
+    axiom_idx = prover.add_instantiated_assumption(
+        _axiom,
+        ADDITIONAL_QUANTIFICATION_AXIOMS[idx],
+        {"R": template_R, "x": variable, "Q": template_Q, "y": variable},
+    )
+
+    eq1 = prover.add_mp(right, inner_eq, axiom_idx)
+
+    axiom_map = {
+        ("A", "|"): ADDITIONAL_QUANTIFICATION_AXIOMS[8],
+        ("E", "|"): ADDITIONAL_QUANTIFICATION_AXIOMS[9],
+        ("A", "&"): ADDITIONAL_QUANTIFICATION_AXIOMS[4],
+        ("E", "&"): ADDITIONAL_QUANTIFICATION_AXIOMS[5],
+        ("A", "->"): ADDITIONAL_QUANTIFICATION_AXIOMS[12],
+        ("E", "->"): ADDITIONAL_QUANTIFICATION_AXIOMS[13],
+    }
+
+    _axiom = equivalence_of(formula, qx_subformula)
+    eq2 = prover.add_instantiated_assumption(
+        _axiom,
+        axiom_map[(quantifier, formula.root)],
+        {"R": template_R.second, "x": variable, "Q": first},
+    )
+
+    prover.add_tautological_implication(
+        equivalence_of(formula, qx_target_subformula), {eq1, eq2}
+    )
+
+    return qx_target_subformula, prover.qed()
 
 
 def _pull_out_quantifications_across_binary_operator(
