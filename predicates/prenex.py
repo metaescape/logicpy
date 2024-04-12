@@ -421,6 +421,71 @@ def _pull_out_quantifications_across_negation(
     assert is_unary(formula.root)
     # Task 11.6
 
+    prover = Prover(Prover.AXIOMS.union(ADDITIONAL_QUANTIFICATION_AXIOMS))
+
+    root = formula.root
+    if not is_quantifier(formula.first.root):
+        # base case
+        tautology = equivalence_of(formula, formula)
+        prover.add_tautology(tautology)
+        return formula, prover.qed()
+
+    subformula = Formula("~", formula.first.statement)
+    target_formula, proof = _pull_out_quantifications_across_negation(
+        subformula
+    )  # target_formula: ~P(x)
+
+    quantifier = "E" if formula.first.root == "A" else "A"
+    variable = formula.first.variable
+
+    qx_subformula = Formula(quantifier, variable, subformula)
+    qx_target_formula = Formula(quantifier, variable, target_formula)
+
+    # use extra axiom 15/16
+    idx = -1 if quantifier == "E" else -2
+
+    left = equivalence_of(subformula, target_formula)
+    right = equivalence_of(qx_subformula, qx_target_formula)
+    inner_eq = prover.add_proof(left, proof)
+
+    _axiom = Formula("->", left, right)
+    template_R = subformula.substitute({variable: Term("_")})
+    template_Q = target_formula.substitute({variable: Term("_")})
+    axiom_idx = prover.add_instantiated_assumption(
+        _axiom,
+        ADDITIONAL_QUANTIFICATION_AXIOMS[idx],
+        {"R": template_R, "x": variable, "Q": template_Q, "y": variable},
+    )
+
+    eq1 = prover.add_mp(right, inner_eq, axiom_idx)
+
+    # reference axiom 1/2
+    idx = 0 if quantifier == "E" else 1
+
+    _axiom = equivalence_of(formula, qx_subformula)
+    print(_axiom)
+    print(template_R.first)
+    eq2 = prover.add_instantiated_assumption(
+        _axiom,
+        ADDITIONAL_QUANTIFICATION_AXIOMS[idx],
+        {"R": template_R.first, "x": variable},
+    )
+
+    prover.add_tautological_implication(
+        equivalence_of(formula, qx_target_formula), {eq1, eq2}
+    )
+
+    Schema(
+        Formula.parse("((~Ax[R(x)]->Ex[~R(x)])&(Ex[~R(x)]->~Ax[R(x)]))"),
+        {"x", "R"},
+    )
+    Schema(
+        Formula.parse("((~Ex[R(x)]->Ax[~R(x)])&(Ax[~R(x)]->~Ex[R(x)]))"),
+        {"x", "R"},
+    )
+
+    return qx_target_formula, prover.qed()
+
 
 def _pull_out_quantifications_from_left_across_binary_operator(
     formula: Formula,
