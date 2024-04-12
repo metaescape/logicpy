@@ -847,6 +847,80 @@ def _to_prenex_normal_form_from_uniquely_named_variables(
     """
     assert has_uniquely_named_variables(formula)
     # Task 11.9
+    prover = Prover(Prover.AXIOMS.union(ADDITIONAL_QUANTIFICATION_AXIOMS))
+    if is_quantifier_free(formula):
+        prover.add_tautology(equivalence_of(formula, formula))
+        return formula, prover.qed()
+    if is_unary(formula.root):
+        inner_prenex, proof = (
+            _to_prenex_normal_form_from_uniquely_named_variables(
+                formula=formula.first
+            )
+        )
+        inner_eqv_id = prover.add_proof(proof.conclusion, proof)
+        neg_prenex = Formula(formula.root, inner_prenex)
+        eqv = equivalence_of(formula, neg_prenex)
+        eqv_idx = prover.add_tautological_implication(eqv, {inner_eqv_id})
+        prenex, proof = _pull_out_quantifications_across_negation(neg_prenex)
+        prenex_idx = prover.add_proof(proof.conclusion, proof)
+
+        eqv2 = equivalence_of(formula, prenex)
+        prover.add_tautological_implication(eqv2, {eqv_idx, prenex_idx})
+        return prenex, prover.qed()
+    if is_binary(formula.root):
+        left, right = formula.first, formula.second
+        left_prenex, left_proof = (
+            _to_prenex_normal_form_from_uniquely_named_variables(formula=left)
+        )
+        right_prenex, right_proof = (
+            _to_prenex_normal_form_from_uniquely_named_variables(formula=right)
+        )
+        left_idx = prover.add_proof(left_proof.conclusion, left_proof)
+        right_idx = prover.add_proof(right_proof.conclusion, right_proof)
+        prenex_prenex = Formula(formula.root, left_prenex, right_prenex)
+        eqv = equivalence_of(formula, prenex_prenex)
+        step1 = prover.add_tautological_implication(eqv, {left_idx, right_idx})
+        prenex, proof = _pull_out_quantifications_across_binary_operator(
+            prenex_prenex
+        )
+
+        prenex_id = prover.add_proof(proof.conclusion, proof)
+        eqv2 = equivalence_of(formula, prenex)
+        prover.add_tautological_implication(eqv2, {step1, prenex_id})
+        return prenex, prover.qed()
+    if is_quantifier(formula.root):
+        statement = formula.statement
+        quantifier = formula.root
+        variable = formula.variable
+        prenex_statement, proof = (
+            _to_prenex_normal_form_from_uniquely_named_variables(statement)
+        )
+
+        step = prover.add_proof(proof.conclusion, proof)
+
+        prenex = Formula(formula.root, formula.variable, prenex_statement)
+
+        idx = -1 if quantifier == "E" else -2
+        left = equivalence_of(statement, prenex_statement)
+        prenex = Formula(quantifier, variable, prenex_statement)
+        right = equivalence_of(formula, prenex)
+
+        _axiom = Formula("->", left, right)
+
+        axiom_idx = prover.add_instantiated_assumption(
+            _axiom,
+            ADDITIONAL_QUANTIFICATION_AXIOMS[idx],
+            {
+                "R": statement.substitute({variable: Term("_")}),
+                "x": variable,
+                "Q": prenex_statement.substitute({variable: Term("_")}),
+                "y": variable,
+            },
+        )
+        prover.add_mp(right, step, axiom_idx)
+        return prenex, prover.qed()
+
+    return formula, prover.qed()
 
 
 def to_prenex_normal_form(formula: Formula) -> Tuple[Formula, Proof]:
@@ -882,3 +956,14 @@ def to_prenex_normal_form(formula: Formula) -> Tuple[Formula, Proof]:
     for variable in formula.variables():
         assert not is_z_and_number(variable)
     # Task 11.10
+    prover = Prover(Prover.AXIOMS.union(ADDITIONAL_QUANTIFICATION_AXIOMS))
+    uniq_formula, proof = _uniquely_rename_quantified_variables(formula)
+    step1 = prover.add_proof(proof.conclusion, proof)
+    target_formula, proof = (
+        _to_prenex_normal_form_from_uniquely_named_variables(uniq_formula)
+    )
+    step2 = prover.add_proof(proof.conclusion, proof)
+    eqv = equivalence_of(formula, target_formula)
+    prover.add_tautological_implication(eqv, {step1, step2})
+
+    return target_formula, prover.qed()
