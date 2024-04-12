@@ -831,61 +831,47 @@ def prove_russell_paradox(print_as_proof_forms: bool = False) -> Proof:
 
     # A(x)[x \in y<->~x \in x]-> c\in y <-> ~c \in c
 
-    # reference
-    UI = Schema(Formula.parse("(Ax[R(x)]->R(c))"), {"R", "x", "c"})
+    x_in_y = Formula("In", [Term("x"), Term("y")])
+    not_x_in_x = Formula("~", Formula("In", [Term("x"), Term("x")]))
+    x_in_y_iff_not_x_in_x = Formula(
+        "&",
+        Formula("->", x_in_y, not_x_in_x),
+        Formula("->", not_x_in_x, x_in_y),
+    )
+    a_x_in_y_iff_not_x_in_x = Formula("A", "x", x_in_y_iff_not_x_in_x)
 
-    ui_first_temp = "((In(x,y)->~In(x,x))&(~In(x,x)->In(x,y)))"
-    ui_first = ui_first_temp.replace("y", "c")
-    ui_second = ui_first_temp.replace("x", "c").replace("y", "c")
+    y_in_y_iff_not_y_in_y = x_in_y_iff_not_x_in_x.substitute({"x": Term("y")})
 
-    specified_str = f"(Ax[{ui_first}]->{ui_second})"
+    z_ = Formula.parse("(z=z&~z=z)")
 
-    specified = prover.add_instantiated_assumption(
-        specified_str,
-        prover.UI,
+    contradiction_imply: int = prover.add_tautology(
+        Formula("->", y_in_y_iff_not_y_in_y, z_)
+    )
+
+    ax2y = Formula("->", a_x_in_y_iff_not_x_in_x, y_in_y_iff_not_y_in_y)
+
+    ui_idx: int = prover.add_instantiated_assumption(
+        ax2y,
+        Prover.UI,
         {
-            "R": ui_first.replace("x", "_"),
-            "c": "c",
+            "R": x_in_y_iff_not_x_in_x.substitute({"x": Term("_")}),
+            "c": "y",
         },
     )
 
-    ug = prover.add_ug(f"Ay[{specified_str}]", specified)
+    ax2z = Formula("->", a_x_in_y_iff_not_x_in_x, z_)
 
-    print(ug)
-    return None
-    comprehension_temp = "Ey[Ax[((In(x,y)->R(x))&(R(x)->In(x,y)))]]"
-    comprehension_str = comprehension_temp.replace("R(x)", "~In(x,x)")
-
-    comprehension = prover.add_instantiated_assumption(
-        comprehension_str,
-        COMPREHENSION_AXIOM,
-        {
-            "R": "~In(_,_))",
-        },
+    ax2z_id = prover.add_tautological_implication(
+        ax2z, {contradiction_imply, ui_idx}
     )
 
-    both = f"(Ay[{specified_str}]&{comprehension_str})"
-    prover.add_tautological_implication(both, {ug, comprehension})
+    ey_a_x_in_y_iff_not_x_in_x = Formula("E", "y", a_x_in_y_iff_not_x_in_x)
 
-    es_str = f"({both}->Q())".replace("Q()", ui_second)
-    print(es_str)
-
-    # Referece
-    ES = Schema(
-        Formula.parse("((Ax[(R(x)->Q())]&Ex[R(x)])->Q())"), {"Q", "R", "x"}
+    es_2_id = prover.add_instantiated_assumption(
+        ey_a_x_in_y_iff_not_x_in_x, COMPREHENSION_AXIOM, {"R": "~In(_,_))"}
     )
-    prover.add_free_instantiation
 
-    print(f"Ax[{ui_first_temp}]".replace("y", "_"))
-    es = prover.add_instantiated_assumption(
-        es_str,
-        prover.ES,
-        {
-            "R": f"Ax[{ui_first_temp}]".replace("y", "_"),
-            "Q": ui_second,
-            "x": "y",
-        },
-    )
+    prover.add_existential_derivation(z_, es_2_id, ax2z_id)
 
     return prover.qed()
 

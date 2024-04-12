@@ -463,8 +463,6 @@ def _pull_out_quantifications_across_negation(
     idx = 0 if quantifier == "E" else 1
 
     _axiom = equivalence_of(formula, qx_subformula)
-    print(_axiom)
-    print(template_R.first)
     eq2 = prover.add_instantiated_assumption(
         _axiom,
         ADDITIONAL_QUANTIFICATION_AXIOMS[idx],
