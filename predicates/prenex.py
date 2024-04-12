@@ -274,6 +274,107 @@ def _uniquely_rename_quantified_variables(
         assert not is_z_and_number(variable)
     # Task 11.5
 
+    root = formula.root
+    prover = Prover(Prover.AXIOMS.union(ADDITIONAL_QUANTIFICATION_AXIOMS))
+    if is_unary(root):
+        returned_formula, proof = _uniquely_rename_quantified_variables(
+            formula.first
+        )
+        new_formula = Formula("~", returned_formula)
+
+        eqv_formula = equivalence_of(formula.first, returned_formula)
+
+        eqv_idx = prover.add_proof(eqv_formula, proof)
+        res_formula = equivalence_of(formula, new_formula)
+        prover.add_tautological_implication(res_formula, {eqv_idx})
+
+        return new_formula, prover.qed()
+    if is_binary(root):
+        returned_formula1, proof1 = _uniquely_rename_quantified_variables(
+            formula.first
+        )
+        returned_formula2, proof2 = _uniquely_rename_quantified_variables(
+            formula.second
+        )
+
+        eqv_formula1 = equivalence_of(formula.first, returned_formula1)
+        eqv_idx1 = prover.add_proof(eqv_formula1, proof1)
+        eqv_formula2 = equivalence_of(formula.second, returned_formula2)
+        eqv_idx2 = prover.add_proof(eqv_formula2, proof2)
+
+        eqv_formula = equivalence_of(
+            formula, Formula(root, returned_formula1, returned_formula2)
+        )
+        prover.add_tautological_implication(eqv_formula, {eqv_idx1, eqv_idx2})
+
+        new_formula = Formula(root, returned_formula1, returned_formula2)
+
+        return new_formula, prover.qed()
+    if is_quantifier(root):
+
+        statement = formula.statement
+
+        return_statement, q_proof = _uniquely_rename_quantified_variables(
+            statement
+        )
+        new_variable = next(fresh_variable_name_generator)
+        new_statement = return_statement.substitute(
+            {str(formula.variable): Term(new_variable)}
+        )
+        new_formula = Formula(
+            root,
+            new_variable,
+            new_statement,
+        )
+        left = equivalence_of(statement, return_statement)
+        right = equivalence_of(formula, new_formula)
+
+        _axiom = Formula("->", left, right)
+
+        inner_eqv_idx = prover.add_proof(left, q_proof)
+        idx = -1 if root == "E" else -2
+        template = statement.substitute({str(formula.variable): Term("_")})
+        new_template = new_statement.substitute({new_variable: Term("_")})
+        # print(_axiom)
+        # print(template)
+        # print(new_statement)
+        # print(formula.variable)
+        # print(new_template)
+        axiom_idx = prover.add_instantiated_assumption(
+            _axiom,
+            ADDITIONAL_QUANTIFICATION_AXIOMS[idx],
+            {
+                "x": formula.variable,
+                "R": template,
+                "y": new_variable,
+                "Q": new_template,
+            },
+        )
+        prover.add_mp(right, inner_eqv_idx, axiom_idx)
+
+        # reference
+        Schema(
+            Formula.parse(
+                "(((R(x)->Q(x))&(Q(x)->R(x)))->"
+                "((Ax[R(x)]->Ay[Q(y)])&(Ay[Q(y)]->Ax[R(x)])))"
+            ),
+            {"x", "y", "R", "Q"},
+        )
+
+        Schema(
+            Formula.parse(
+                "(((R(x)->Q(x))&(Q(x)->R(x)))->"
+                "((Ex[R(x)]->Ey[Q(y)])&(Ey[Q(y)]->Ex[R(x)])))"
+            ),
+            {"x", "y", "R", "Q"},
+        )
+
+        return new_formula, prover.qed()
+
+    # is_relation or is_equality without rename
+    prover.add_tautology(equivalence_of(formula, formula))
+    return formula, prover.qed()
+
 
 def _pull_out_quantifications_across_negation(
     formula: Formula,
