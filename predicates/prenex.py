@@ -757,6 +757,60 @@ def _pull_out_quantifications_across_binary_operator(
     assert is_binary(formula.root)
     # Task 11.8
 
+    prover = Prover(Prover.AXIOMS.union(ADDITIONAL_QUANTIFICATION_AXIOMS))
+    # left pull
+    left_formula, left_proof = (
+        _pull_out_quantifications_from_left_across_binary_operator(formula)
+    )
+    left_idx = prover.add_proof(left_proof.conclusion, left_proof)
+    # right partial pull
+
+    left_depth = 0
+    left_q_tower = []
+    inner_formula = left_formula
+    while is_quantifier(inner_formula.root):
+        left_q_tower.append((inner_formula.root, inner_formula.variable))
+        left_depth += 1
+        inner_formula = inner_formula.statement  # z-Q(c)
+
+    right_formula, right_proof = (
+        _pull_out_quantifications_from_right_across_binary_operator(
+            inner_formula
+        )
+    )
+
+    right_idx = prover.add_proof(right_proof.conclusion, right_proof)
+
+    # combine left and right
+    for i in range(left_depth):
+        quantifier, variable = left_q_tower.pop()
+        idx = -1 if quantifier == "E" else -2
+        left = equivalence_of(inner_formula, right_formula)
+        q_inner_formula = Formula(quantifier, variable, inner_formula)
+        q_right_formula = Formula(quantifier, variable, right_formula)
+        right = equivalence_of(q_inner_formula, q_right_formula)
+
+        _axiom = Formula("->", left, right)
+
+        axiom_idx = prover.add_instantiated_assumption(
+            _axiom,
+            ADDITIONAL_QUANTIFICATION_AXIOMS[idx],
+            {
+                "R": inner_formula.substitute({variable: Term("_")}),
+                "x": variable,
+                "Q": right_formula.substitute({variable: Term("_")}),
+                "y": variable,
+            },
+        )
+
+        right_idx = prover.add_mp(right, right_idx, axiom_idx)
+        inner_formula, right_formula = q_inner_formula, q_right_formula
+
+    conclu = equivalence_of(formula, right_formula)
+    prover.add_tautological_implication(conclu, {left_idx, right_idx})
+
+    return right_formula, prover.qed()
+
 
 def _to_prenex_normal_form_from_uniquely_named_variables(
     formula: Formula,
