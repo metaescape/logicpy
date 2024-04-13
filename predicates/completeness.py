@@ -206,6 +206,23 @@ def find_unsatisfied_quantifier_free_sentence(
     assert unsatisfied in sentences
     assert not model.evaluate_formula(unsatisfied)
     # Task 12.2
+    if is_quantifier_free(unsatisfied):
+        return unsatisfied
+
+    for constant in model.universe:
+        sub_unsatisfied = unsatisfied.statement.substitute(
+            {unsatisfied.variable: Term(constant)}
+        )
+
+        if model.evaluate_formula(sub_unsatisfied):
+            continue
+        if unsatisfied.root == "A" or (sub_unsatisfied in sentences):
+            return find_unsatisfied_quantifier_free_sentence(
+                sentences,
+                model,
+                sub_unsatisfied,
+            )
+    return unsatisfied
 
 
 def get_primitives(quantifier_free: Formula) -> Set[Formula]:

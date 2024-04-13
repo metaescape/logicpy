@@ -252,6 +252,7 @@ class Model(Generic[T]):
                     )
                     for x in self.universe
                 )
+        return True
 
     def is_model_of(self, formulas: AbstractSet[Formula]) -> bool:
         """Checks if the current model is a model of the given formulas.
