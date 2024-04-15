@@ -244,6 +244,14 @@ def get_primitives(quantifier_free: Formula) -> Set[Formula]:
     assert len(quantifier_free.functions()) == 0
     assert "=" not in str(quantifier_free)
     # Task 12.3a
+    if is_relation(quantifier_free.root):
+        return {quantifier_free}
+    if is_unary(quantifier_free.root):
+        return get_primitives(quantifier_free.first)
+    # if is_binary(quantifier_free.root):
+    return get_primitives(quantifier_free.first) | get_primitives(
+        quantifier_free.second
+    )
 
 
 def model_or_inconsistency(
@@ -267,6 +275,56 @@ def model_or_inconsistency(
         assert len(sentence.functions()) == 0
         assert "=" not in str(sentence)
     # Task 12.3b
+
+    constants = get_constants(sentences)
+
+    relation_interpretations = {}
+    for sentence in sentences:
+        if is_relation(sentence.root):
+            if sentence.root not in relation_interpretations:
+                relation_interpretations[sentence.root] = set()
+            relation_interpretations[sentence.root].add(
+                tuple([term.root for term in sentence.arguments])
+            )
+
+    model = Model(
+        universe=constants,
+        constant_interpretations={k: k for k in constants},
+        relation_interpretations=relation_interpretations,
+    )
+    if model.is_model_of(sentences):
+        return model
+
+    for sentence in sentences:
+        if not model.evaluate_formula(sentence):
+            quantier_free = find_unsatisfied_quantifier_free_sentence(
+                sentences, model, sentence
+            )
+            break
+
+    assumptions = set({quantier_free})
+
+    for sentence in sentences:
+        if str(sentence) in str(quantier_free):
+            assumptions.add(sentence)
+        if is_unary(sentence.root) and str(sentence.first) in str(
+            quantier_free
+        ):
+            assumptions.add(sentence)
+
+    prover = Prover(assumptions)
+
+    p = quantier_free
+
+    idx_set = set()
+    for assumption in assumptions:
+        idx_set.add(prover.add_assumption(assumption))
+
+    prover.add_tautological_implication(
+        Formula("~", Formula("->", p, p)), idx_set
+    )
+
+    return prover.qed()
 
 
 def combine_contradictions(
