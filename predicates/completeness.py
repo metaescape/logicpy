@@ -671,4 +671,32 @@ def existential_closure_step(sentences: AbstractSet[Formula]) -> Set[Formula]:
             and len(sentence.free_variables()) == 0
         )
     # Task 12.8
-    return set()
+
+    new_sentences = set()
+
+    E_sentences = set(
+        [sentence for sentence in sentences if sentence.root == "E"]
+    )
+
+    constants = get_constants(sentences)
+
+    removed_E = set()
+    for sentence in E_sentences:
+        for constant in constants:
+            witness = sentence.statement.substitute(
+                {sentence.variable: Term(constant)}
+            )
+            if witness in sentences:
+                removed_E.add(sentence)
+                break
+
+    for sentence in E_sentences:
+        if sentence not in removed_E:
+            constant = next(fresh_constant_name_generator)
+            new_sentences.add(
+                sentence.statement.substitute(
+                    {sentence.variable: Term(constant)}
+                )
+            )
+
+    return sentences | new_sentences
