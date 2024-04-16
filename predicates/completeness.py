@@ -375,6 +375,21 @@ def combine_contradictions(
     ):
         assert len(assumption.formula.free_variables()) == 0
     # Task 12.4
+    prover = Prover(common_assumptions)
+    affirmed_proof = remove_assumption(
+        proof_from_affirmation, affirmed_assumption.formula
+    )
+    negated_proof = remove_assumption(
+        proof_from_negation, negated_assumption.formula
+    )
+
+    step1 = prover.add_proof(affirmed_proof.conclusion, affirmed_proof)
+    step2 = prover.add_proof(negated_proof.conclusion, negated_proof)
+    step3 = prover.add_tautological_implication(
+        proof_from_affirmation.conclusion, {step1, step2}
+    )
+
+    return prover.qed()
 
 
 def eliminate_universal_instantiation_assumption(
