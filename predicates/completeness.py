@@ -517,6 +517,47 @@ def replace_constant(
         assert variable not in line.formula.variables()
     # Task 12.7a
 
+    new_assumptions = set()
+    for ass in proof.assumptions:
+
+        new_ass = Schema(
+            ass.formula.substitute({constant: Term(variable)}),
+            ass.templates,
+        )
+        new_assumptions.add(new_ass)
+
+    prover = Prover(new_assumptions)
+
+    for line in proof.lines:
+        new_formula = line.formula.substitute({constant: Term(variable)})
+        if isinstance(line, Proof.AssumptionLine):
+            new_map = {}
+            for k, v in line.instantiation_map.items():
+                if not isinstance(v, str):
+                    new_map[k] = v.substitute({constant: Term(variable)})
+                else:
+                    new_map[k] = v
+            new_ass = Schema(
+                line.assumption.formula.substitute({constant: Term(variable)}),
+                line.assumption.templates,
+            )
+            new_line = Proof.AssumptionLine(new_formula, new_ass, new_map)
+
+            prover._add_line(new_line)
+        elif isinstance(line, Proof.MPLine):
+            prover.add_mp(
+                new_formula,
+                line.antecedent_line_number,
+                line.conditional_line_number,
+            )
+        elif isinstance(line, Proof.UGLine):
+            prover.add_ug(new_formula, line.nonquantified_line_number)
+        elif isinstance(line, Proof.TautologyLine):
+            new_line = Proof.TautologyLine(new_formula)
+            prover._add_line(new_line)
+
+    return prover.qed()
+
 
 def eliminate_existential_witness_assumption(
     proof: Proof, existential: Formula, constant: str
@@ -561,6 +602,51 @@ def eliminate_existential_witness_assumption(
         assert "zz" not in line.formula.variables()
     # Task 12.7b
 
+    proof_without_witness = replace_constant(proof, constant, "zz")
+
+    zz_witness = witness.substitute({constant: Term("zz")})
+
+    # proof of ~zz_witness from E(x)[P(x)]
+    new_proof = prove_by_way_of_contradiction(
+        proof_without_witness, zz_witness
+    )
+    prover = Prover(proof.assumptions - {Schema(witness)})
+
+    step1 = prover.add_assumption(existential)
+    neg_zz_witness = Formula("~", zz_witness)
+    step2 = prover.add_proof(neg_zz_witness, new_proof)
+
+    # A(x)[~P(zz)]
+    # ~P(x)
+    neg_instance = neg_zz_witness.substitute(
+        {"zz": Term(existential.variable)}
+    )
+    neg_idx = prover.add_free_instantiation(
+        neg_instance,
+        step2,
+        {"zz": existential.variable},
+    )
+    # p->p
+    tautological1 = Formula("->", zz_witness, zz_witness)
+
+    # P(x) -> ~(p->p)
+    tautological2 = Formula(
+        "->", neg_instance.first, Formula("~", tautological1)
+    )  # zz_witness -> contradiction
+
+    # p->p
+    tat_idx = prover.add_tautology(tautological1)
+
+    imply_idx = prover.add_tautological_implication(
+        tautological2, {tat_idx, neg_idx}
+    )
+    # P(x)->~(p->p)&E(x)P(x) : ~(p->p)
+    prover.add_existential_derivation(
+        Formula("~", tautological1), step1, imply_idx
+    )
+
+    return prover.qed()
+
 
 def existential_closure_step(sentences: AbstractSet[Formula]) -> Set[Formula]:
     """Augments the given sentences with an existential witness that uses a new
@@ -585,3 +671,4 @@ def existential_closure_step(sentences: AbstractSet[Formula]) -> Set[Formula]:
             and len(sentence.free_variables()) == 0
         )
     # Task 12.8
+    return set()
