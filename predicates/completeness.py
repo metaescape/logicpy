@@ -430,6 +430,28 @@ def eliminate_universal_instantiation_assumption(
         assert len(assumption.formula.free_variables()) == 0
     # Task 12.5
 
+    instance = universal.statement.substitute(
+        {universal.variable: Term(constant)}
+    )
+    # A(x)[P(x)]:  ~P(c)
+    proof1 = prove_by_way_of_contradiction(proof, instance)
+    prover = Prover(proof1.assumptions)
+    step1 = prover.add_proof(proof1.conclusion, proof1)  # ~P(c)
+    ui = Formula("->", universal, instance)
+    step2 = prover.add_instantiated_assumption(
+        ui,
+        Prover.UI,
+        {
+            "R": instance.substitute({constant: Term("_")}),
+            "c": constant,
+            "x": universal.variable,
+        },
+    )  # Ax[P(x)] -> P(c)
+    step3 = prover.add_assumption(universal)  # Ax[P(c)]
+    step4 = prover.add_mp(instance, step3, step2)  # P(c)
+    prover.add_tautological_implication(proof.conclusion, {step1, step4})
+    return prover.qed()
+
 
 def universal_closure_step(sentences: AbstractSet[Formula]) -> Set[Formula]:
     """Augments the given sentences with all universal instantiations of each
@@ -453,6 +475,18 @@ def universal_closure_step(sentences: AbstractSet[Formula]) -> Set[Formula]:
             and len(sentence.free_variables()) == 0
         )
     # Task 12.6
+    constants = get_constants(sentences)
+    new_sentences = set()
+    for sentence in sentences:
+        if sentence.root == "A":
+            for constant in constants:
+                new_sentences.add(
+                    sentence.statement.substitute(
+                        {sentence.variable: Term(constant)}
+                    )
+                )
+
+    return sentences | new_sentences
 
 
 def replace_constant(
